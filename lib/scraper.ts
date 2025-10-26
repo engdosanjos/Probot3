@@ -393,9 +393,9 @@ export class FootballScraper {
               if (!header.home || !header.away) return;
 
               // encerrar e fechar se a partida acabou
-              const isFinished = /encerrado|final|ft|terminado/i.test(String(header.status || ''));
+              const isFinished = /encerrado|final|ft|terminado|finished/i.test(String(header.status || ''));
               if (isFinished) {
-                await this.upsertAll(ext, header, null); // ainda atualiza placar final
+                await this.upsertAll(ext, header, null, true); // marca como finalizada
                 try { await page.close(); } catch {}
                 this.openPages.delete(ext);
                 if (LOG_BASIC) console.log(`[scraper] Closed finished match: ${ext}`);
@@ -404,7 +404,7 @@ export class FootballScraper {
 
               const stats = await this.readStatsSnapshot(page);
 
-              await this.upsertAll(ext, header, stats);
+              await this.upsertAll(ext, header, stats, false);
               if (LOG_BASIC) {
                 console.log(`[scraper] Updated ${ext} | ${header.home} ${header.goalsHome ?? 0}-${header.goalsAway ?? 0} ${header.away} (${header.minute || 0}')`);
               }
