@@ -233,14 +233,31 @@ export class FootballScraper {
     })();
 
     let goalsHome: number | null = null, goalsAway: number | null = null;
+    let htGoalsHome: number | null = null, htGoalsAway: number | null = null;
+    
     try {
       const spans = await page.locator('.detailScore__wrapper span:not(.detailScore__divider)').allTextContents();
       const nums = (spans || []).map((s: any) => parseInt(String(s || '').replace(/[^\d]/g, ''), 10))
                                  .filter((x: any) => Number.isFinite(x));
-      if (nums.length >= 2) { goalsHome = nums[0]; goalsAway = nums[1]; }
+      if (nums.length >= 2) { 
+        goalsHome = nums[0]; 
+        goalsAway = nums[1]; 
+        
+        // If we're in the second half or match is finished, try to get HT score
+        if (minute && minute >= 45) {
+          try {
+            const htScore = await getTxt('.detailScore__subScore');
+            const htMatch = htScore.match(/\((\d+):(\d+)\)/);
+            if (htMatch) {
+              htGoalsHome = parseInt(htMatch[1], 10);
+              htGoalsAway = parseInt(htMatch[2], 10);
+            }
+          } catch {}
+        }
+      }
     } catch {}
 
-    return { home, away, league, status, minute, goalsHome, goalsAway };
+    return { home, away, league, status, minute, goalsHome, goalsAway, htGoalsHome, htGoalsAway };
   }
 
   private async readStatRowByLabel(page: Page, label: string) {
