@@ -1,7 +1,9 @@
 
 import { PrismaClient, PredictionType } from '@prisma/client';
+import { TimelineAnalyzer } from './timeline-analyzer';
 
 const prisma = new PrismaClient();
+const timelineAnalyzer = new TimelineAnalyzer();
 
 interface MatchStats {
   xgHome: number;
