@@ -497,49 +497,57 @@ export class FootballScraper {
       
       console.log(`[scraper] Match upserted: ID=${match.id}, Status=${match.status}, Minute=${match.minute}`);
 
-    if (stats) {
-      await prisma.match.update({
-        where: { id: match.id },
-        data: {
-          shotsHome: stats.st_home || 0,
-          shotsAway: stats.st_away || 0,
-          shotsOnHome: stats.sot_home || 0,
-          shotsOnAway: stats.sot_away || 0,
-          shotsOffHome: stats.soff_home || 0,
-          shotsOffAway: stats.soff_away || 0,
-          shotsBlkHome: stats.sblk_home || 0,
-          shotsBlkAway: stats.sblk_away || 0,
-          cornersHome: stats.corners_home || 0,
-          cornersAway: stats.corners_away || 0,
-          xgHome: stats.xg_home || 0,
-          xgAway: stats.xg_away || 0,
-          bigChancesHome: stats.bc_home || 0,
-          bigChancesAway: stats.bc_away || 0,
-          dangAttHome: stats.da_home || 0,
-          dangAttAway: stats.da_away || 0,
-        },
-      });
+      if (stats) {
+        await prisma.match.update({
+          where: { id: match.id },
+          data: {
+            shotsHome: stats.st_home || 0,
+            shotsAway: stats.st_away || 0,
+            shotsOnHome: stats.sot_home || 0,
+            shotsOnAway: stats.sot_away || 0,
+            shotsOffHome: stats.soff_home || 0,
+            shotsOffAway: stats.soff_away || 0,
+            shotsBlkHome: stats.sblk_home || 0,
+            shotsBlkAway: stats.sblk_away || 0,
+            cornersHome: stats.corners_home || 0,
+            cornersAway: stats.corners_away || 0,
+            xgHome: stats.xg_home || 0,
+            xgAway: stats.xg_away || 0,
+            bigChancesHome: stats.bc_home || 0,
+            bigChancesAway: stats.bc_away || 0,
+            dangAttHome: stats.da_home || 0,
+            dangAttAway: stats.da_away || 0,
+          },
+        });
+        
+        console.log(`[scraper] Stats updated: xG=${stats.xg_home}+${stats.xg_away}, Shots=${stats.st_home}+${stats.st_away}`);
 
-      await prisma.statSnapshot.create({
-        data: {
-          matchId: match.id,
-          minute: header.minute || 0,
-          shotsHome: stats.st_home || 0,
-          shotsAway: stats.st_away || 0,
-          shotsOnHome: stats.sot_home || 0,
-          shotsOnAway: stats.sot_away || 0,
-          cornersHome: stats.corners_home || 0,
-          cornersAway: stats.corners_away || 0,
-          xgHome: stats.xg_home || 0,
-          xgAway: stats.xg_away || 0,
-          bigChancesHome: stats.bc_home || 0,
-          bigChancesAway: stats.bc_away || 0,
-        },
-      });
-    }
-    
-    if (LOG_BASIC && isFinished) {
-      console.log(`[scraper] Match marked as FINISHED: ${header.home} ${header.goalsHome ?? 0}-${header.goalsAway ?? 0} ${header.away}`);
+        await prisma.statSnapshot.create({
+          data: {
+            matchId: match.id,
+            minute: header.minute || 0,
+            shotsHome: stats.st_home || 0,
+            shotsAway: stats.st_away || 0,
+            shotsOnHome: stats.sot_home || 0,
+            shotsOnAway: stats.sot_away || 0,
+            cornersHome: stats.corners_home || 0,
+            cornersAway: stats.corners_away || 0,
+            xgHome: stats.xg_home || 0,
+            xgAway: stats.xg_away || 0,
+            bigChancesHome: stats.bc_home || 0,
+            bigChancesAway: stats.bc_away || 0,
+          },
+        });
+        
+        console.log(`[scraper] StatSnapshot created for minute ${header.minute || 0}`);
+      }
+      
+      if (LOG_BASIC && isFinished) {
+        console.log(`[scraper] Match marked as FINISHED: ${header.home} ${header.goalsHome ?? 0}-${header.goalsAway ?? 0} ${header.away}`);
+      }
+    } catch (error) {
+      console.error(`[scraper] ERROR in upsertAll for ${externalId}:`, error);
+      throw error;
     }
   }
 }
