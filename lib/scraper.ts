@@ -424,7 +424,7 @@ export class FootballScraper {
   }
 
   // Upserts agrupados (liga, times, jogo e snapshots)
-  private async upsertAll(externalId: string, header: any, stats: any | null) {
+  private async upsertAll(externalId: string, header: any, stats: any | null, isFinished: boolean = false) {
     const league = await prisma.league.upsert({
       where: { name: header.league || 'Unknown League' },
       update: { country: 'Unknown' },
@@ -448,7 +448,8 @@ export class FootballScraper {
         minute: header.minute,
         goalsHome: header.goalsHome ?? 0,
         goalsAway: header.goalsAway ?? 0,
-        isBeingTracked: true,
+        isBeingTracked: !isFinished,
+        isFinished: isFinished,
         homeTeamId: homeTeam.id,
         awayTeamId: awayTeam.id,
         leagueId: league.id,
@@ -462,7 +463,8 @@ export class FootballScraper {
         minute: header.minute,
         goalsHome: header.goalsHome ?? 0,
         goalsAway: header.goalsAway ?? 0,
-        isBeingTracked: true,
+        isBeingTracked: !isFinished,
+        isFinished: isFinished,
       },
       include: { _count: true },
     });
@@ -506,6 +508,10 @@ export class FootballScraper {
           bigChancesAway: stats.bc_away || 0,
         },
       });
+    }
+    
+    if (LOG_BASIC && isFinished) {
+      console.log(`[scraper] Match marked as FINISHED: ${header.home} ${header.goalsHome ?? 0}-${header.goalsAway ?? 0} ${header.away}`);
     }
   }
 }
