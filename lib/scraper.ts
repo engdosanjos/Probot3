@@ -442,21 +442,26 @@ export class FootballScraper {
 
   // Upserts agrupados (liga, times, jogo e snapshots)
   private async upsertAll(externalId: string, header: any, stats: any | null, isFinished: boolean = false) {
-    const league = await prisma.league.upsert({
-      where: { name: header.league || 'Unknown League' },
-      update: { country: 'Unknown' },
-      create: { name: header.league || 'Unknown League', country: 'Unknown' },
-    });
-
-    const upsertTeam = (name: string) =>
-      prisma.team.upsert({
-        where: { name },
-        update: { league: header.league || 'Unknown League', country: 'Unknown' },
-        create: { name, league: header.league || 'Unknown League', country: 'Unknown' },
+    try {
+      console.log(`[scraper] Starting upsert for ${externalId}: ${header.home} vs ${header.away}`);
+      
+      const league = await prisma.league.upsert({
+        where: { name: header.league || 'Unknown League' },
+        update: { country: 'Unknown' },
+        create: { name: header.league || 'Unknown League', country: 'Unknown' },
       });
+      console.log(`[scraper] League upserted: ${league.name}`);
 
-    const homeTeam = await upsertTeam(header.home);
-    const awayTeam = await upsertTeam(header.away);
+      const upsertTeam = (name: string) =>
+        prisma.team.upsert({
+          where: { name },
+          update: { league: header.league || 'Unknown League', country: 'Unknown' },
+          create: { name, league: header.league || 'Unknown League', country: 'Unknown' },
+        });
+
+      const homeTeam = await upsertTeam(header.home);
+      const awayTeam = await upsertTeam(header.away);
+      console.log(`[scraper] Teams upserted: ${homeTeam.name} vs ${awayTeam.name}`);
 
     const match = await prisma.match.upsert({
       where: { externalId },
