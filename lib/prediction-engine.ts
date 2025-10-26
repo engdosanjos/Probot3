@@ -165,24 +165,46 @@ export class PredictionEngine {
 
     const weights = this.currentWeights;
     
-    // Balance between both teams' attacking stats
-    const homeAttackStrength = (stats.xgHome + stats.shotsOnHome + stats.bigChancesHome) / 3;
-    const awayAttackStrength = (stats.xgAway + stats.shotsOnAway + stats.bigChancesAway) / 3;
+    // Individual team strength assessment
+    const homeAttackStrength = (stats.xgHome + stats.shotsOnHome * 0.5 + stats.bigChancesHome) / 3;
+    const awayAttackStrength = (stats.xgAway + stats.shotsOnAway * 0.5 + stats.bigChancesAway) / 3;
     
-    const bothTeamsAttacking = Math.min(homeAttackStrength, awayAttackStrength) / 
-                              Math.max(homeAttackStrength, awayAttackStrength, 0.1);
+    // Balance factor - both teams need to be threatening
+    const minAttack = Math.min(homeAttackStrength, awayAttackStrength);
+    const maxAttack = Math.max(homeAttackStrength, awayAttackStrength);
+    const balanceRatio = maxAttack > 0 ? minAttack / maxAttack : 0;
     
+    // Check if one team hasn't scored yet but is showing signs
+    const homeNeedsGoal = stats.goalsHome === 0;
+    const awayNeedsGoal = stats.goalsAway === 0;
+    
+    // Boost probability if one team has scored and the other is attacking well
+    let catchupBonus = 0;
+    if (homeNeedsGoal && stats.goalsAway > 0 && homeAttackStrength > 1.0) {
+      catchupBonus = 0.2;
+    } else if (awayNeedsGoal && stats.goalsHome > 0 && awayAttackStrength > 1.0) {
+      catchupBonus = 0.2;
+    }
+    
+    // Overall attacking metrics
     const totalXG = Math.min((stats.xgHome + stats.xgAway) / 3.5, 1);
-    const totalShots = Math.min((stats.shotsOnHome + stats.shotsOnAway) / 12, 1);
+    const totalShotsOn = Math.min((stats.shotsOnHome + stats.shotsOnAway) / 12, 1);
     const totalChances = Math.min((stats.bigChancesHome + stats.bigChancesAway) / 8, 1);
+    
+    // Both teams shooting accuracy
+    const homeAccuracy = stats.shotsHome > 0 ? stats.shotsOnHome / stats.shotsHome : 0;
+    const awayAccuracy = stats.shotsAway > 0 ? stats.shotsOnAway / stats.shotsAway : 0;
+    const avgAccuracy = (homeAccuracy + awayAccuracy) / 2;
     
     const timeFactor = Math.max(0, (85 - stats.minute) / 85);
     
     const score = (
-      totalXG * weights.bttsXGBothWeight +
-      totalShots * weights.bttsShotsBothWeight +
-      totalChances * weights.bttsChancesBothWeight
-    ) * bothTeamsAttacking * timeFactor;
+      totalXG * weights.bttsXGBothWeight * 1.1 +
+      totalShotsOn * weights.bttsShotsBothWeight +
+      totalChances * weights.bttsChancesBothWeight * 1.2 +
+      avgAccuracy * 0.15 +
+      catchupBonus
+    ) * balanceRatio * timeFactor;
 
     return Math.min(score, 1);
   }
