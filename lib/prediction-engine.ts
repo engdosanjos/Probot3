@@ -211,7 +211,7 @@ export class PredictionEngine {
     return Math.min(score, 1);
   }
 
-  // Main prediction logic
+  // Main prediction logic with timeline analysis
   async analyzeMatch(matchId: string): Promise<any[]> {
     try {
       const match = await prisma.match.findUnique({
@@ -246,18 +246,41 @@ export class PredictionEngine {
         goalsAway: match.goalsAway
       };
 
+      // 🆕 ANÁLISE DE LINHA DO TEMPO
+      const timeline = await timelineAnalyzer.analyzeMatchTimeline(matchId, 10);
+      console.log(`[prediction] Timeline Analysis for ${match.homeTeam.name} vs ${match.awayTeam.name}:`);
+      console.log(`  Momentum: ${(timeline.momentumScore * 100).toFixed(1)}%`);
+      console.log(`  Intensity: ${(timeline.attackingIntensity * 100).toFixed(1)}%`);
+      console.log(`  Pressure: ${(timeline.pressureLevel * 100).toFixed(1)}%`);
+      console.log(`  Danger Level: ${timeline.dangerLevel}`);
+      console.log(`  Indicators: ${timeline.preGoalIndicators.join(', ')}`);
+
       const predictions = [];
 
       // Check HT prediction
       if (stats.minute < 45) {
-        const htProb = this.calculateHTGoalProbability(stats);
+        let htProb = this.calculateHTGoalProbability(stats);
+        
+        // 🆕 BOOST baseado na análise temporal
+        if (timeline.dangerLevel === 'CRITICAL') {
+          htProb *= 1.3;
+          console.log(`[prediction] HT probability boosted by CRITICAL danger level: ${htProb.toFixed(3)}`);
+        } else if (timeline.dangerLevel === 'HIGH') {
+          htProb *= 1.15;
+        }
+        
+        // Boost adicional por momentum
+        htProb += timeline.momentumScore * 0.1;
+        
         if (htProb > this.currentWeights.htThreshold) {
           const existingHT = match.predictions.find(p => p.type === 'HT');
           if (!existingHT) {
+            const reason = `High xG and attacking stats suggest goal before half-time. ${timeline.preGoalIndicators.slice(0, 2).join(', ')}`;
             predictions.push({
               type: 'HT',
-              probability: htProb,
-              reason: 'High xG and attacking stats suggest goal before half-time'
+              probability: Math.min(htProb, 1),
+              reason,
+              timelineAnalysis: timeline
             });
           }
         }
@@ -265,14 +288,27 @@ export class PredictionEngine {
 
       // Check FT prediction
       if (stats.minute < 85) {
-        const ftProb = this.calculateFTGoalProbability(stats);
+        let ftProb = this.calculateFTGoalProbability(stats);
+        
+        // 🆕 BOOST baseado na análise temporal
+        if (timeline.dangerLevel === 'CRITICAL') {
+          ftProb *= 1.25;
+          console.log(`[prediction] FT probability boosted by CRITICAL danger level: ${ftProb.toFixed(3)}`);
+        } else if (timeline.dangerLevel === 'HIGH') {
+          ftProb *= 1.12;
+        }
+        
+        ftProb += timeline.momentumScore * 0.08;
+        
         if (ftProb > this.currentWeights.ftThreshold) {
           const existingFT = match.predictions.find(p => p.type === 'FT');
           if (!existingFT) {
+            const reason = `Strong attacking indicators suggest goal in this match. ${timeline.preGoalIndicators.slice(0, 2).join(', ')}`;
             predictions.push({
               type: 'FT',
-              probability: ftProb,
-              reason: 'Strong attacking indicators suggest goal in this match'
+              probability: Math.min(ftProb, 1),
+              reason,
+              timelineAnalysis: timeline
             });
           }
         }
@@ -280,14 +316,22 @@ export class PredictionEngine {
 
       // Check BTTS prediction
       if (stats.minute < 80 && (stats.goalsHome === 0 || stats.goalsAway === 0)) {
-        const bttsProb = this.calculateBTTSProbability(stats);
+        let bttsProb = this.calculateBTTSProbability(stats);
+        
+        // 🆕 BOOST baseado na análise temporal
+        if (timeline.dangerLevel === 'HIGH' || timeline.dangerLevel === 'CRITICAL') {
+          bttsProb *= 1.15;
+        }
+        
         if (bttsProb > this.currentWeights.bttsThreshold) {
           const existingBTTS = match.predictions.find(p => p.type === 'BTTS');
           if (!existingBTTS) {
+            const reason = `Both teams showing good attacking threat. ${timeline.preGoalIndicators.slice(0, 1).join('')}`;
             predictions.push({
               type: 'BTTS',
-              probability: bttsProb,
-              reason: 'Both teams showing good attacking threat'
+              probability: Math.min(bttsProb, 1),
+              reason,
+              timelineAnalysis: timeline
             });
           }
         }
