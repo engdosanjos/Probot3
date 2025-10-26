@@ -80,17 +80,32 @@ export class PredictionEngine {
     // Normalize stats (0-1 scale based on typical match values)
     const normalizedXG = Math.min((stats.xgHome + stats.xgAway) / 3.0, 1);
     const normalizedShots = Math.min((stats.shotsHome + stats.shotsAway) / 20, 1);
+    const normalizedShotsOnTarget = Math.min((stats.shotsOnHome + stats.shotsOnAway) / 10, 1);
     const normalizedCorners = Math.min((stats.cornersHome + stats.cornersAway) / 12, 1);
     const normalizedChances = Math.min((stats.bigChancesHome + stats.bigChancesAway) / 8, 1);
+    
+    // Shot conversion rate (shots on target / total shots) - indicates quality
+    const totalShots = stats.shotsHome + stats.shotsAway;
+    const shotsOnTarget = stats.shotsOnHome + stats.shotsOnAway;
+    const conversionQuality = totalShots > 0 ? shotsOnTarget / totalShots : 0;
+    
+    // Momentum indicator - high activity suggests imminent goal
+    const attackingMomentum = (normalizedShots + normalizedShotsOnTarget + normalizedChances) / 3;
     
     // Time factor - more aggressive predictions early in first half
     const timeFactor = Math.max(0, (45 - stats.minute) / 45);
     
+    // Pressure indicator - corners + dangerous attacks suggest sustained pressure
+    const pressureIndicator = normalizedCorners * 0.7 + attackingMomentum * 0.3;
+    
     const score = (
-      normalizedXG * weights.htXGWeight +
-      normalizedShots * weights.htShotsWeight +
+      normalizedXG * weights.htXGWeight * 1.2 +
+      normalizedShots * weights.htShotsWeight * 0.8 +
+      normalizedShotsOnTarget * weights.htShotsWeight * 1.3 +
       normalizedCorners * weights.htCornersWeight +
-      normalizedChances * weights.htBigChancesWeight
+      normalizedChances * weights.htBigChancesWeight * 1.5 +
+      conversionQuality * 0.25 +
+      pressureIndicator * 0.2
     ) * timeFactor;
 
     return Math.min(score, 1);
