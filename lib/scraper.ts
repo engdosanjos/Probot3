@@ -463,37 +463,39 @@ export class FootballScraper {
       const awayTeam = await upsertTeam(header.away);
       console.log(`[scraper] Teams upserted: ${homeTeam.name} vs ${awayTeam.name}`);
 
-    const match = await prisma.match.upsert({
-      where: { externalId },
-      update: {
-        status: header.status || 'Live',
-        minute: header.minute,
-        goalsHome: header.goalsHome ?? 0,
-        goalsAway: header.goalsAway ?? 0,
-        htGoalsHome: header.htGoalsHome,
-        htGoalsAway: header.htGoalsAway,
-        isBeingTracked: !isFinished,
-        isFinished: isFinished,
-        homeTeamId: homeTeam.id,
-        awayTeamId: awayTeam.id,
-        leagueId: league.id,
-      },
-      create: {
-        externalId,
-        homeTeamId: homeTeam.id,
-        awayTeamId: awayTeam.id,
-        leagueId: league.id,
-        status: header.status || 'Live',
-        minute: header.minute,
-        goalsHome: header.goalsHome ?? 0,
-        goalsAway: header.goalsAway ?? 0,
-        htGoalsHome: header.htGoalsHome,
-        htGoalsAway: header.htGoalsAway,
-        isBeingTracked: !isFinished,
-        isFinished: isFinished,
-      },
-      include: { _count: true },
-    });
+      const match = await prisma.match.upsert({
+        where: { externalId },
+        update: {
+          status: header.status || 'Live',
+          minute: header.minute,
+          goalsHome: header.goalsHome ?? 0,
+          goalsAway: header.goalsAway ?? 0,
+          htGoalsHome: header.htGoalsHome,
+          htGoalsAway: header.htGoalsAway,
+          isBeingTracked: !isFinished,
+          isFinished: isFinished,
+          homeTeamId: homeTeam.id,
+          awayTeamId: awayTeam.id,
+          leagueId: league.id,
+        },
+        create: {
+          externalId,
+          homeTeamId: homeTeam.id,
+          awayTeamId: awayTeam.id,
+          leagueId: league.id,
+          status: header.status || 'Live',
+          minute: header.minute,
+          goalsHome: header.goalsHome ?? 0,
+          goalsAway: header.goalsAway ?? 0,
+          htGoalsHome: header.htGoalsHome,
+          htGoalsAway: header.htGoalsAway,
+          isBeingTracked: !isFinished,
+          isFinished: isFinished,
+        },
+        include: { _count: true },
+      });
+      
+      console.log(`[scraper] Match upserted: ID=${match.id}, Status=${match.status}, Minute=${match.minute}`);
 
     if (stats) {
       await prisma.match.update({
