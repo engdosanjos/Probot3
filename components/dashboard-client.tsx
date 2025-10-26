@@ -372,7 +372,12 @@ export default function DashboardClient() {
                 <AnimatePresence>
                   {liveMatches.length > 0 ? (
                     liveMatches.map((match: any, index) => (
-                      <LiveMatchCard key={match.id} match={match} index={index} />
+                      <LiveMatchCard 
+                        key={match.id} 
+                        match={match} 
+                        index={index}
+                        onMatchClosed={fetchAllData}
+                      />
                     ))
                   ) : (
                     <div className="text-center py-12">
