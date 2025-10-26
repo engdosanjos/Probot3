@@ -119,17 +119,40 @@ export class PredictionEngine {
     
     const normalizedXG = Math.min((stats.xgHome + stats.xgAway) / 4.0, 1);
     const normalizedShots = Math.min((stats.shotsHome + stats.shotsAway) / 25, 1);
+    const normalizedShotsOnTarget = Math.min((stats.shotsOnHome + stats.shotsOnAway) / 12, 1);
     const normalizedCorners = Math.min((stats.cornersHome + stats.cornersAway) / 15, 1);
     const normalizedChances = Math.min((stats.bigChancesHome + stats.bigChancesAway) / 10, 1);
+    
+    // Shot accuracy and quality metrics
+    const totalShots = stats.shotsHome + stats.shotsAway;
+    const shotsOnTarget = stats.shotsOnHome + stats.shotsOnAway;
+    const shotAccuracy = totalShots > 0 ? shotsOnTarget / totalShots : 0;
+    
+    // Attacking intensity (shots per minute played)
+    const attackingIntensity = stats.minute > 0 ? totalShots / stats.minute : 0;
+    const normalizedIntensity = Math.min(attackingIntensity / 0.5, 1);
+    
+    // Goal expectancy based on xG efficiency
+    const xgTotal = stats.xgHome + stats.xgAway;
+    const currentGoals = stats.goalsHome + stats.goalsAway;
+    const xgDeficit = Math.max(0, xgTotal - currentGoals); // How many goals "should" have been scored
     
     // Time factor - different rewards for predictions before/after 45min
     const timeFactor = Math.max(0, (90 - stats.minute) / 90);
     
+    // Late game pressure bonus (after 60 mins teams push more)
+    const lateGameBonus = stats.minute > 60 ? 0.15 : 0;
+    
     const score = (
-      normalizedXG * weights.ftXGWeight +
-      normalizedShots * weights.ftShotsWeight +
+      normalizedXG * weights.ftXGWeight * 1.1 +
+      normalizedShots * weights.ftShotsWeight * 0.9 +
+      normalizedShotsOnTarget * weights.ftShotsWeight * 1.2 +
       normalizedCorners * weights.ftCornersWeight +
-      normalizedChances * weights.ftBigChancesWeight
+      normalizedChances * weights.ftBigChancesWeight * 1.4 +
+      shotAccuracy * 0.2 +
+      normalizedIntensity * 0.15 +
+      Math.min(xgDeficit / 2, 0.3) +
+      lateGameBonus
     ) * timeFactor;
 
     return Math.min(score, 1);
