@@ -1,0 +1,303 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String          @id @default(cuid())
+  name          String?
+  email         String          @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  Authenticator Authenticator[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+model Authenticator {
+  credentialID         String  @unique
+  userId               String
+  providerAccountId    String
+  credentialPublicKey  String
+  counter              Int
+  credentialDeviceType String
+  credentialBackedUp   Boolean
+  transports           String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, credentialID])
+}
+
+// ====== GOAL PREDICTION SYSTEM MODELS ======
+
+model Config {
+  id                String  @id @default(cuid())
+  telegramBotToken  String?
+  telegramChatId    String?
+  bankroll          Float   @default(100.0)
+  stakePercentage   Float   @default(5.0)
+  isSystemActive    Boolean @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("config")
+}
+
+model Team {
+  id          String @id @default(cuid())
+  name        String @unique
+  league      String
+  country     String
+  
+  // Historical statistics for learning
+  totalMatches    Int @default(0)
+  htGoalsFor      Int @default(0)
+  htGoalsAgainst  Int @default(0)
+  ftGoalsFor      Int @default(0)
+  ftGoalsAgainst  Int @default(0)
+  bttsMatches     Int @default(0)
+  
+  // Advanced statistics
+  avgShotsTotal     Float @default(0)
+  avgShotsOnTarget  Float @default(0)
+  avgCorners        Float @default(0)
+  avgXG             Float @default(0)
+  avgBigChances     Float @default(0)
+  
+  // Prediction accuracy tracking
+  htPredictionsMade     Int @default(0)
+  htPredictionsCorrect  Int @default(0)
+  ftPredictionsMade     Int @default(0)
+  ftPredictionsCorrect  Int @default(0)
+  bttsPredictionsMade   Int @default(0)
+  bttsPredictionsCorrect Int @default(0)
+  
+  matchesHome  Match[] @relation("HomeTeam")
+  matchesAway  Match[] @relation("AwayTeam")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("teams")
+}
+
+model League {
+  id       String @id @default(cuid())
+  name     String @unique
+  country  String
+  
+  avgGoalsPerMatch    Float @default(0)
+  htGoalPercentage    Float @default(0)
+  ftGoalPercentage    Float @default(0)
+  bttsPercentage      Float @default(0)
+  
+  htAccuracy          Float @default(0)
+  ftAccuracy          Float @default(0)
+  bttsAccuracy        Float @default(0)
+  
+  matches Match[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("leagues")
+}
+
+model Match {
+  id              String @id @default(cuid())
+  externalId      String @unique
+  homeTeam        Team   @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  homeTeamId      String
+  awayTeam        Team   @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  awayTeamId      String
+  league          League @relation(fields: [leagueId], references: [id])
+  leagueId        String
+  
+  status          String
+  minute          Int?
+  goalsHome       Int    @default(0)
+  goalsAway       Int    @default(0)
+  htGoalsHome     Int?
+  htGoalsAway     Int?
+  
+  shotsHome       Int @default(0)
+  shotsAway       Int @default(0)
+  shotsOnHome     Int @default(0)
+  shotsOnAway     Int @default(0)
+  shotsOffHome    Int @default(0)
+  shotsOffAway    Int @default(0)
+  shotsBlkHome    Int @default(0)
+  shotsBlkAway    Int @default(0)
+  cornersHome     Int @default(0)
+  cornersAway     Int @default(0)
+  xgHome          Float @default(0)
+  xgAway          Float @default(0)
+  bigChancesHome  Int @default(0)
+  bigChancesAway  Int @default(0)
+  dangAttHome     Int @default(0)
+  dangAttAway     Int @default(0)
+  
+  isFinished      Boolean @default(false)
+  isBeingTracked  Boolean @default(false)
+  
+  predictions     Prediction[]
+  statSnapshots   StatSnapshot[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("matches")
+}
+
+model StatSnapshot {
+  id        String @id @default(cuid())
+  match     Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  matchId   String
+  minute    Int
+  
+  shotsHome       Int
+  shotsAway       Int
+  shotsOnHome     Int
+  shotsOnAway     Int
+  cornersHome     Int
+  cornersAway     Int
+  xgHome          Float
+  xgAway          Float
+  bigChancesHome  Int
+  bigChancesAway  Int
+  
+  createdAt DateTime @default(now())
+
+  @@map("stat_snapshots")
+}
+
+model Prediction {
+  id            String        @id @default(cuid())
+  match         Match         @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  matchId       String
+  
+  type          PredictionType
+  predictionMinute Int
+  stake         Float
+  isResolved    Boolean @default(false)
+  isCorrect     Boolean?
+  profit        Float?
+  
+  homeXGAtPrediction    Float
+  awayXGAtPrediction    Float
+  homeShotsAtPrediction Int
+  awayShotsAtPrediction Int
+  homeCornersAtPrediction Int
+  awayCornersAtPrediction Int
+  homeBigChancesAtPrediction Int
+  awayBigChancesAtPrediction Int
+  
+  confidenceScore Float @default(0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("predictions")
+}
+
+model BankHistory {
+  id              String @id @default(cuid())
+  previousBalance Float
+  newBalance      Float
+  change          Float
+  reason          String
+  predictionId    String?
+  
+  createdAt DateTime @default(now())
+
+  @@map("bank_history")
+}
+
+model MLWeights {
+  id          String @id @default(cuid())
+  version     String @unique
+  
+  htXGWeight          Float @default(0.4)
+  htShotsWeight       Float @default(0.2)
+  htCornersWeight     Float @default(0.15)
+  htBigChancesWeight  Float @default(0.25)
+  
+  ftXGWeight          Float @default(0.35)
+  ftShotsWeight       Float @default(0.25)
+  ftCornersWeight     Float @default(0.2)
+  ftBigChancesWeight  Float @default(0.2)
+  
+  bttsXGBothWeight    Float @default(0.3)
+  bttsShotsBothWeight Float @default(0.3)
+  bttsChancesBothWeight Float @default(0.4)
+  
+  htThreshold         Float @default(0.6)
+  ftThreshold         Float @default(0.5)
+  bttsThreshold       Float @default(0.65)
+  
+  isActive            Boolean @default(true)
+  accuracy            Float @default(0)
+  totalPredictions    Int @default(0)
+  
+  createdAt DateTime @default(now())
+
+  @@map("ml_weights")
+}
+
+enum PredictionType {
+  HT
+  FT
+  BTTS
+}
